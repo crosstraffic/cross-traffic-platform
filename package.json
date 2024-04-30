@@ -1,0 +1,50 @@
+{
+  "name": "cross-traffic-platform",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "modulize-wasm": "node HCM-middleware/modulize.js",
+    "wasm": "wasm-pack build HCM-middleware --target web && npm run modulize-wasm",
+    "py_build": "npm run build_py --file=$npm_config_runfile && npm run build_py --file=$npm_config_setfile && npm run build_py --file=$npm_config_tripfile",
+    "dev": "npm run wasm && vite",
+    "build": "vite build",
+    "build_py": "pyinstaller -F sim-coordination/sumo/$npm_config_file.py --distpath sim-coordination/sumo --clean -n $npm_config_file-x86_64-unknown-linux-gnu",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "lint": "prettier --ignore-path .gitignore --check --plugin-search-dir=. . && eslint .",
+    "format": "prettier --write --plugin-search-dir=. ."
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.22.0",
+    "@sveltejs/adapter-auto": "3.1.1",
+    "@sveltejs/adapter-static": "3.0.1",
+    "@sveltejs/kit": "^2.5.4",
+    "@tauri-apps/api": "^1.5.3",
+    "@tauri-apps/cli": "^1",
+    "@typescript-eslint/eslint-plugin": "^5.27.0",
+    "@typescript-eslint/parser": "^5.27.0",
+    "autoprefixer": "^10.4.8",
+    "cssnano": "^5.1.12",
+    "daisyui": "^2.20.0",
+    "eslint": "^8.16.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-svelte": "^2.35.1",
+    "postcss": "^8.4.14",
+    "prettier": "^2.6.2",
+    "prettier-plugin-svelte": "^2.7.0",
+    "svelte": "^4.2.1",
+    "svelte-check": "^3.5.2",
+    "svelte-preprocess": "^5.0.4",
+    "tailwindcss": "^3.1.7",
+    "tslib": "^2.3.1",
+    "typescript": "^5.4.3",
+    "vite": "^5.2.6",
+    "vite-plugin-wasm-pack": "^0.1.12",
+    "wasm-pack": "^0.12.1"
+  },
+  "dependencies": {
+    "@tauri-apps/plugin-log": "^2.0.0-beta.2",
+    "@wasm-tool/rollup-plugin-rust": "^2.4.4"
+  }
+}

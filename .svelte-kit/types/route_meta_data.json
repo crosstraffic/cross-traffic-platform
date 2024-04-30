@@ -1,0 +1,24 @@
+{
+	"/": [
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/Calc": [
+		"src/routes/+layout.ts"
+	],
+	"/Row": [
+		"src/routes/+layout.ts"
+	],
+	"/SubRow": [
+		"src/routes/+layout.ts"
+	],
+	"/about": [
+		"src/routes/+layout.ts"
+	],
+	"/hcm15": [
+		"src/routes/+layout.ts"
+	],
+	"/terms": [
+		"src/routes/+layout.ts"
+	]
+}
