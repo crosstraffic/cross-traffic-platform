@@ -3,7 +3,8 @@
     xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
     <input>
         <net-file value="hcm15.net.xml"/>
-        <route-files value="hcm15.rou.xml"/>
+        <additional-files value="hcm15.add.vtype.xml"/>
+        <route-files value="hcm15.trips.xml"/>
     </input>
     <time>
         <begin value="0"/>

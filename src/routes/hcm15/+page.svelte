@@ -52,6 +52,7 @@
     let phf = new Array(rows.length);
     let fdensity = new Array(rows.length);
     let bdensity = new Array(rows.length);
+    let phv = new Array(rows.length);
 
     for (var i=0; i < rows.length; i++){
         rad[i] = new Array(rows[i].subrows.length+1);
@@ -76,10 +77,10 @@
       phf[i] = document.getElementById('PHF_input'+(i+1)).value;
       fdensity[i] = Vi[i] / (speed[i] * 3.6)
       bdensity[i] = Vo[i] / (speed[i] * 3.6)
+      phv[i] = document.getElementById('PHV_input'+(i+1)).value;
 
     }
 
-    // TODO: When arguments are more than one, it doens't recognize as a argument.
     // Each argument must be states in one line and split with column.
     // - subsegment_num should be differed depending on the segment
     const set_command_list = [
@@ -142,6 +143,12 @@
       set_command_list.push(Vo[i].toString());
     }
 
+    // Add Percentage of Heavy Vehicle
+    set_command_list.push('--phv');
+    for (let i=0; i<rows.length; i++) {
+      set_command_list.push(phv[i].toString());
+    }
+
 
     const set_command = Command.sidecar("../sim-coordination/sumo/make_netfile", set_command_list);
     console.log(set_command);
@@ -163,6 +170,8 @@
       '../sim-coordination/sumo/hcm15.rou.xml',
       '--output-trip-file',
       '../sim-coordination/sumo/hcm15.trips.xml',
+      '--additional-files',
+      '../sim-coordination/sumo/hcm15.add.vtype.xml',
       '--random-depart',
       '--period',
       phf[0].toString(),
@@ -177,7 +186,7 @@
       '--num-segs',
       rows.length.toString(),
       '--trip-attributes',
-      'departSpeed=\"max\"'
+      'departSpeed=\"max\" type=\"typedist1\"',
     ]
 
     if (rows.length == 1) {

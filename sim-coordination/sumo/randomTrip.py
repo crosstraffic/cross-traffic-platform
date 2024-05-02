@@ -786,8 +786,14 @@ def main(options):
         fouttrips.write('    </person>\n')
 
     def generate_one_flow(label, combined_attrs, departureTime, arrivalTime, period, options, timeIdx, is_op):
+        if is_op:
+            label = 'op' + label
+
         if len(options.period) > 1:
-            label = label + "#%s" % timeIdx
+            if is_op:
+                label = 'op' + "#%s" % timeIdx
+            else:
+                label = "#%s" % timeIdx
         if options.binomial:
             for j in range(options.binomial):
                 fouttrips.write(('    <flow id="%s#%s" begin="%s" end="%s" probability="%.2f"%s/>\n') % (
@@ -831,6 +837,7 @@ def main(options):
 
     with open(options.tripfile, 'w') as fouttrips:
         sumolib.writeXMLHeader(fouttrips, "$Id$", "routes", options=options)
+        # vClass="truck" will be used based on HV percentage
         if options.vehicle_class:
             vTypeDef = '    <vType id="%s" vClass="%s"%s/>\n' % (
                 options.vtypeID, options.vehicle_class, vtypeattrs)

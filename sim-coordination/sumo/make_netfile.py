@@ -10,8 +10,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--root_dir', '--rd', type=str, default='../sim-coordination/sumo', help='Root directory')
 parser.add_argument('--segment_num', '--s', type=int, default=1, help='Number of segments')
-parser.add_argument('--subsegment_num', '--ss', type=int, default=0, help='Number of subsegments')
-parser.add_argument('--seg_x', '--sx', type=float, nargs='+', default=[1.0], help='x coordinates (segment length)')
+parser.add_argument('--subsegment_num', '--ss', type=int, default=1, help='Number of subsegments')
+parser.add_argument('--seg_x', '--sx', type=float, nargs='+', default=[100.0], help='x coordinates (segment length)')
 parser.add_argument('--seg_y', '--sy', type=float, nargs='+', default=[0.0], help='y coordinates')
 parser.add_argument('--rad', '--r', type=float, nargs='+', default=[0.0], help='Radius of subsegmnet')
 parser.add_argument('--sup_ele', '--se', type=float, nargs='+', default=[0.0], help='Super elevation of subsegmnet')
@@ -22,6 +22,7 @@ parser.add_argument('--vo', type=int, nargs='+', default=[0], help='Opposite vol
 parser.add_argument('--num_lanes', '--l', type=int, nargs='+', default=[1], help='Number of lanes')
 parser.add_argument('--speed', '--sp', type=float, default=[45.0], nargs='+', help='Post speed limit')
 parser.add_argument('--lane_width', '--lw', type=float, default=12.0, help='Lane width')
+parser.add_argument('--phv', type=float, nargs='+', default=[5.0], help='Percentage of heavy vehicle')
 
 
 args = parser.parse_args()
@@ -42,11 +43,12 @@ class HCMTopology:
     - sup_ele [List]: Superelevation for each subsegments.
     '''
     def __init__(self, root_dir: str, segment_num: int, subsegment_num: int, seg_x: float, seg_y: list[float], rad: list[float], sup_ele: list[float],
-                 fdensity: list[float], bdensity: list[float], vi: list[int], vo: list[int], num_lanes: list[int], speed: list[float], lane_width: float):
+                 fdensity: list[float], bdensity: list[float], vi: list[int], vo: list[int], num_lanes: list[int], speed: list[float], lane_width: float, phv: list[float]):
         self.root_dir = root_dir
 
         self.node_root = ET.Element('nodes')
         self.edge_root = ET.Element('edges')
+        self.add_root = ET.Element('additional')
         self.subsegment_num = subsegment_num
         self.segment_num = segment_num
         self.seg_x = [self.convert_mile_to_meter(sx) for sx in seg_x]
@@ -60,6 +62,7 @@ class HCMTopology:
         self.bdensity = bdensity
         self.vi = vi
         self.vo = vo
+        self.phv = phv
 
     def create_node_file_from_hcm(self):
         ''' https://sumo.dlr.de/docs/Networks/PlainXML.html#node_descriptions
@@ -108,12 +111,30 @@ class HCMTopology:
             for j in range(1, self.subsegment_num):
                 ET.SubElement(self.edge_root, 'edge', id=str(i), _from=str(i), to=str(i+1))
 
+    def create_add_file(self):
+        '''
+        <additional>
+            <vTypeDistribution id="typedist1" >
+                <vType id="vTypeCar" maxSpeed="35" vClass="passenger" length="4.5" guiShape="passenger" probability="0.9"/>
+                <vType id="vTypeBus" maxSpeed="30" vClass="bus" Length="14.63" guiShape="bus" probability="0.1"/>
+            </vTypeDistribution>
+        </additional>
+        '''
+        for i in range(1, self.segment_num+1):
+            if self.subsegment_num == 1:
+                add_tree = ET.SubElement(self.add_root, 'vTypeDistribution', id='typedist'+str(i))
+                # Forward
+                add_subtree = ET.SubElement(add_tree, 'vType', id="vTypeCar", maxSpeed=str(self.speed[i-1]), length="5.0", guiShape="passenger", probability=str(1.0-self.phv[i-1]/100))
+                add_subtree = ET.SubElement(add_tree, 'vType', id="vTypeTruck", maxSpeed=str(self.speed[i-1]), length="14.63", guiShape="truck/semitrailer", probability=str(self.phv[i-1]/100))
+
+
     def create_netfile_from_hcm(self):
         '''
         netconvert --node_files=node.nod.xml --edge_files=edge.edg.xml --output_file=out.net.xml
         '''
         node_tree = ET.ElementTree(self.node_root)
         edge_tree = ET.ElementTree(self.edge_root)
+        add_tree = ET.ElementTree(self.add_root)
         print("Creating the node file")
         self.create_node_file_from_hcm()
         node_tree.write(osp.join(self.root_dir, 'hcm15.nod.xml'), encoding="utf-8")
@@ -124,6 +145,10 @@ class HCMTopology:
 
         # Replace syntax
         self.replace_from_in_edge(osp.join(self.root_dir, 'hcm15.edg.xml'))
+
+        print("Creating the additinoal file")
+        self.create_add_file()
+        add_tree.write(osp.join(self.root_dir, 'hcm15.add.vtype.xml'), encoding="utf-8")
 
         # Run netconvert
         subprocess.Popen(["netconvert", "--node-files", osp.join(self.root_dir, 'hcm15.nod.xml'), "--edge-files", osp.join(self.root_dir, "hcm15.edg.xml"), "--output-file", osp.join(self.root_dir, "hcm15.net.xml")])
@@ -158,7 +183,7 @@ class HCMTopology:
 hcm_topology = HCMTopology(args.root_dir, args.segment_num, args.subsegment_num, 
                             args.seg_x, args.seg_y, args.rad, args.sup_ele,
                             args.fdensity, args.bdensity, args.vi, args.vo,
-                            args.num_lanes, args.speed, args.lane_width)
+                            args.num_lanes, args.speed, args.lane_width, args.phv)
 
 # print("Creating the netfile")
 hcm_topology.create_netfile_from_hcm()
