@@ -5,6 +5,8 @@
     // Export variables
     export let rows_len;
     export let rows;
+    export let outputParams;
+    export let inputParams;
     // export let data;
     // let { rows_len, rows } = data;
 
@@ -96,22 +98,33 @@
         // Initialization
         for(let i=0; i < rows_len; i++) {
             var subrows_len = rows[i].subrows.length;
-            var pass_type = document.getElementById("passing_type"+(i+1));
-            pass_type = pass_type.options[pass_type.selectedIndex].text;
-            if (pass_type == "Passing Constrained") passing_type[i] = 0
-            else if (pass_type == "Passing Zone") passing_type[i] = 1
-            else if (pass_type == "Passing Lane") passing_type[i] = 2
+            // var pass_type = document.getElementById("passing_type"+(i+1));
+            var pass_type = inputParams.passing_type[i];
+            // pass_type = pass_type.options[pass_type.selectedIndex].text;
+            if (pass_type == "Passing Constrained") passing_type[i] = 0;
+            else if (pass_type == "Passing Zone") passing_type[i] = 1;
+            else if (pass_type == "Passing Lane") passing_type[i] = 2;
 
-            Spl = document.getElementById("seg_Spl"+(i+1)).value;
-            vc = document.getElementById("vc_select"+(i+1)).value;
-            is_hc = document.getElementById("is_hc"+(i+1)).checked;
-            Vi = document.getElementById("vi_input"+(i+1)).value;
-            Vo = document.getElementById("vo_input"+(i+1)).value;
-            seg_length = document.getElementById("seg_length"+(i+1)).value;
-            seg_grade = document.getElementById("seg_grade"+(i+1)).value;
-            PHF = document.getElementById("PHF_input"+(i+1)).value;
-            PHV = document.getElementById("PHV_input"+(i+1)).value;
-            ver_class = document.getElementById("vc_select"+(i+1)).value;
+            Spl = inputParams.seg_Spl[i];
+            is_hc = inputParams.is_hc[i];
+            Vi = inputParams.vi_input[i];
+            Vo = inputParams.vo_input[i];
+            seg_length = inputParams.seg_length[i];
+            seg_grade = inputParams.seg_grade[i];
+            PHF = inputParams.phf[i];
+            PHV = inputParams.phv[i];
+            ver_class = inputParams.vc_select[i];
+
+            // Spl = document.getElementById("seg_Spl"+(i+1)).value;
+            // vc = document.getElementById("vc_select"+(i+1)).value;
+            // is_hc = document.getElementById("is_hc"+(i+1)).checked;
+            // Vi = document.getElementById("vi_input"+(i+1)).value;
+            // Vo = document.getElementById("vo_input"+(i+1)).value;
+            // seg_length = document.getElementById("seg_length"+(i+1)).value;
+            // seg_grade = document.getElementById("seg_grade"+(i+1)).value;
+            // PHF = document.getElementById("PHF_input"+(i+1)).value;
+            // PHV = document.getElementById("PHV_input"+(i+1)).value;
+            // ver_class = document.getElementById("vc_select"+(i+1)).value;
 
             var wasmSubSegment = [];
             wasmSubSegment[0] = new WasmSubSegment(0.0, 0.0, 0, 0.0, 0.0);
@@ -157,6 +170,7 @@
                 fd = wasmTwoLaneHighways.determine_follower_density_pc_pz(i);
                 // If the segment is within the effective length of PL section
             }
+            // TODO: if users add another segment from one segment setting, error happens here.
             fd_adj = wasmTwoLaneHighways.determine_adjustment_to_follower_density(i);
 
             if (wasmTwoLaneHighways.get_segments()[i].passing_type != 2) {
@@ -173,6 +187,11 @@
 
             // console.log(wasmTwoLaneHighways.get_segments()[i].subsegments);
 
+            outputParams.ffs[i] = Math.round(ffs*1000)/1000;
+            outputParams.pf[i] = Math.round(pf[i]*1000)/1000;
+            outputParams.avgspd[i] = Math.round(s*1000) / 1000;
+            outputParams.fd[i] = Math.round(fd_out*1000) / 1000;
+            outputParams.seglos[i] = los;
             document.getElementById("ffs" + (i+1)).innerHTML = "" + Math.round(ffs*1000)/1000;
             document.getElementById("pf" + (i+1)).innerHTML = "" + Math.round(pf[i]*1000)/1000;
             document.getElementById("avgspd" + (i+1)).innerHTML = "" + Math.round(s*1000) / 1000;
@@ -186,8 +205,10 @@
 
         // Output (LOS)
         document.getElementById("los").innerHTML = "Entire LOS: " + fac_los;
+        outputParams.los = fac_los;
         // Facility Follower Density
         document.getElementById("fdF").innerHTML = "Facility Follower Density: " + Math.round(fd_f*1000)/1000;
+        outputParams.fdF = Math.round(fd_f*1000)/1000;
         // Error
         document.getElementById("error").innerHTML = "Error message: " + out;
 

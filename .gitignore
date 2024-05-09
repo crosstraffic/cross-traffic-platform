@@ -15,6 +15,7 @@ build
 HCM-middleware/target
 
 *-unknown-linux-gnu
+*-unknown-linux-gnu.spec
 sim-coordination/sumo/*-unknown-linux-gnu
 
 # Editor directories and files

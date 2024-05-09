@@ -11,20 +11,46 @@
   });
 
 
-  let count = 0;
-  let columns = [
-    'Active',
-    'Segment',
-    'Passing Type',
-    'Length',
-    'Grade',
-    'Horizontal Curves',
-    'HC Params',
-    'Demand Volums',
-    'Demand Volumns (O)',
-    'Vertical Class',
-  ];
+  let inputParams = {
+    passing_type: ["Passing Constrained"],
+    seg_length: [0],
+    seg_grade: [0],
+    seg_Spl: [0],
+    is_hc: [false],
+    vi_input: [0],
+    vo_input: [0],
+    vc_select: ["1"],
+    phf: [0.95],
+    phv: [5],
+    lw: 12,
+    sw: 6,
+    apd: 2,
+    pmhvfl: 0,
+  }
 
+  let outputParams = {
+    ffs: [0],
+    pf: [0],
+    avgspd: [0],
+    fd: [0],
+    seglos: [''],
+    los: '',
+    fdF: 0,
+  }
+
+  let imgParams = {
+    src: ["segment.jpg"],
+    width: [100],
+    height: [100],
+    td_width: [100],
+    cap: ["undefined"]
+  }
+
+  let activeTab = 'calculation';
+
+  function setActiveTab(tab) {
+    activeTab = tab;
+  }
 
 
   // export let data;
@@ -45,7 +71,7 @@
     let rad = new Array(rows.length);
     let sup_ele = new Array(rows.length);
     let speed = new Array(rows.length);
-    let lane_width = new Array(rows.length);
+    let lane_width = inputParams.lw;
     let num_lanes = new Array(rows.length);
     let Vi = new Array(rows.length);
     let Vo = new Array(rows.length);
@@ -54,30 +80,46 @@
     let bdensity = new Array(rows.length);
     let phv = new Array(rows.length);
 
+    // 2D initialization
     for (var i=0; i < rows.length; i++){
-        rad[i] = new Array(rows[i].subrows.length+1);
-        sup_ele[i] = new Array(rows[i].subrows.length+1);
+      seg_x[i] = new Array(rows[i].subrows.length+1);
+      seg_y[i] = new Array(rows[i].subrows.length+1);
+      rad[i] = new Array(rows[i].subrows.length+1);
+      sup_ele[i] = new Array(rows[i].subrows.length+1);
     }
 
-    for (let i=0; i<rows.length; i++) {
+    for (let i=0; i < rows.length; i++) {
 
       // TODO: Return error if something missing
-      let pass_type = document.getElementById('passing_type'+(i+1));
-      let pt = pass_type.options[pass_type.selectedIndex].text;
-      seg_x[i] = document.getElementById('seg_length'+(i+1)).value;
-      seg_y[i] = 0.0;
+      // let pass_type = document.getElementById('passing_type'+(i+1));
+      // let pt = pass_type.options[pass_type.selectedIndex].text;
+      let pt = inputParams.passing_type[i];
+      // if (document.getElementById("is_hc"+(i+1)).checked) {
+      if (inputParams.is_hc[i]) {
+        for (let j=0; j < rows[i].subrows.length; j++) {
+          seg_x[i][j] = document.getElementById('subseg_len'+(j+1)).value;
+          seg_y[i][j] = 0.0;
+          rad[i][j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("design_radius"+(j+1))[0].value;
+          sup_ele[i][j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("superelevation"+(j+1))[0].value;
+        }
+      } else {
+        // seg_x[i][0] = document.getElementById('seg_length'+(i+1)).value;
+        seg_x[i][0] = inputParams.seg_length[i];
+        seg_y[i][0] = 0.0;
+      }
       if (pt == 'Passing Lane')
         num_lanes[i] = 2;
       else
         num_lanes[i] = 1;
-      speed[i] = document.getElementById('seg_Spl'+(i+1)).value;
-      lane_width = document.getElementById('LW_input').value;
-      Vi[i] = document.getElementById('vi_input'+(i+1)).value;
-      Vo[i] = document.getElementById('vo_input'+(i+1)).value;
-      phf[i] = document.getElementById('PHF_input'+(i+1)).value;
+      // speed[i] = document.getElementById('seg_Spl'+(i+1)).value;
+      speed[i] = inputParams.seg_Spl[i];
+      Vi[i] = inputParams.vi_input[i];
+      Vo[i] = inputParams.vo_input[i];
+      phf[i] = inputParams.phf[i];
       fdensity[i] = Vi[i] / (speed[i] * 3.6)
       bdensity[i] = Vo[i] / (speed[i] * 3.6)
-      phv[i] = document.getElementById('PHV_input'+(i+1)).value;
+      // phv[i] = document.getElementById('PHV_input'+(i+1)).value;
+      phv[i] = inputParams.phv[i];
 
     }
 
@@ -88,25 +130,39 @@
       "../sim-coordination/sumo",
       '--segment_num',
       rows.length.toString(),
-      '--subsegment_num',
-      rows[0].subrows.length.toString(),
-      // '--seg_y',
-      // seg_y_args.toString(),
-      // // // '--rad ' + rad,
-      // // // '--sup_ele ' + sup_ele,
       '--lane_width',
       lane_width.toString(),
       '--seg_x',
     ]
+
     // Add segment x
-    for (let i=0; i<seg_x.length;i++) {
-      set_command_list.push(seg_x[i].toString());
+    let seg_x_str = "";
+    for (let i=0; i < rows.length; i++) {
+      // let sup_ele_list = new Array(rows.length);
+      for (let j=0; j < rows[i].subrows.length; j++) {
+        seg_x_str += seg_x[i][j].toString();
+      }
+      if (i != rows.length-1)
+        seg_x_str += ";";
     }
+    set_command_list.push(seg_x_str);
 
     // Add segment y
     set_command_list.push('--seg_y');
-    for (let i=0; i<rows.length;i++) {
-      set_command_list.push(seg_y[i].toString());
+    let seg_y_str = "";
+    for (let i=0; i < rows.length; i++) {
+      for (let j=0; j < rows[i].subrows.length; j++) {
+        seg_y_str += seg_y[i][j].toString();
+      }
+      if (i != rows.length-1)
+        seg_y_str += ";";
+    }
+    set_command_list.push(seg_y_str);
+
+    // Add number of subsegment
+    set_command_list.push('--subsegment_num');
+    for (let i=0; i < rows.length; i++) {
+      set_command_list.push(rows[i].subrows.length.toString());
     }
 
     // Add Speed
@@ -145,9 +201,41 @@
 
     // Add Percentage of Heavy Vehicle
     set_command_list.push('--phv');
-    for (let i=0; i<rows.length; i++) {
+    for (let i=0; i < rows.length; i++) {
       set_command_list.push(phv[i].toString());
     }
+
+    // Add Radius
+    set_command_list.push('--rad');
+    let rad_str = "";
+    for (let i=0; i < rows.length; i++) {
+      if (inputParams.is_hc[i]) {
+        for (let j=0; j < rows[i].subrows.length; j++) {
+          rad_str += rad[i][j].toString();
+        }
+      } else {
+          rad_str += "0.0";
+      }
+      if (i != rows.length-1)
+        rad_str += ";";
+    }
+    set_command_list.push(rad_str);
+
+    // Add Super Elevation
+    set_command_list.push('--sup_ele');
+    let sup_ele_str = "";
+    for (let i=0; i < rows.length; i++) {
+      if (inputParams.is_hc[i]) {
+        for (let j=0; j < rows[i].subrows.length; j++) {
+          sup_ele_str += sup_ele[i][j].toString();
+        }
+      } else {
+        sup_ele_str += "0.0";
+      }
+      if (i != rows.length-1)
+        sup_ele_str += ";";
+    }
+    set_command_list.push(sup_ele_str);
 
 
     const set_command = Command.sidecar("../sim-coordination/sumo/make_netfile", set_command_list);
@@ -189,14 +277,15 @@
       'departSpeed=\"max\" type=\"typedist1\"',
     ]
 
+
+    trip_command_list.push('--num-subsegs');
+    for (let i=0; i < rows.length; i++) {
+      trip_command_list.push(rows[i].subrows.length.toString());
+    }
+
     if (rows.length == 1) {
       trip_command_list.push('--allow-fringe');
     }
-
-    // for (let i=0; i<Vi.length;i++) {
-      
-    //   trip_command_list.push(Vi[i].toString());
-    // }
 
     // Reload tauri when updating new net file.
     const trip_command = Command.sidecar("../sim-coordination/sumo/randomTrip", trip_command_list)
@@ -217,24 +306,12 @@
   function addSegment() {
     rows = [...rows, { seg_num: rows.length + 1, subrows }];
 
-    // also add image and caption
-    var table = document.getElementById('seg_imgs');
-    var img_row = table.rows[0];
-    var cap_row = table.rows[1];
-
-    var img = document.createElement('img');
-    img.src = 'segment.jpg';
-    img.height = 100;
-    img.width = 100;
-    img.setAttribute('id', 'seg_img' + rows.length);
-
-    if (document.getElementById('passing_type' + rows.length) != null) {
-      var cap = document.getElementById('passing_type' + rows.length).value;
-    }
-
-    // document.getElementById("seg_imgs").appendChild(img);
-    img_row.insertCell(-1).appendChild(img);
-    cap_row.insertCell(-1).innerHTML = cap;
+    imgParams.src.push('segment.jpg');
+    imgParams.height.push(100);
+    imgParams.width.push(100);
+    imgParams.cap.push("undefined");
+    inputParams.phf.push(0.94);
+    inputParams.phv.push(5);
   }
 
   function removeSegment() {
@@ -242,6 +319,9 @@
     var img = document.getElementById('seg_img' + rows.length);
     var img_row = table.rows[0];
     var cap_row = table.rows[1];
+
+    inputParams.phf.pop();
+    inputParams.phv.pop();
 
     if (rows.length > 1) {
       if (img != null) {
@@ -259,49 +339,33 @@
   }
 
   function changeSegment(seg_num) {
-    var table = document.getElementById('seg_imgs');
-    var img_cap_row = table.rows[1];
-    var img_cap = 'undefined';
-    var img = document.getElementById('seg_img' + seg_num);
-
-    // console.log(values.vd);
-    var Vi = document.getElementById('vi_input' + seg_num);
-    var Vo = document.getElementById('vo_input' + seg_num);
-    var PT = document.getElementById('passing_type' + seg_num).value;
-
-    // if (document.getElementById('passing_type' + seg_num) != null) {
-    //   cap = document.getElementById('passing_type' + seg_num).value;
-    //   console.log(cap);
-    // }
-
+    let PT = inputParams.passing_type[seg_num-1];
 
     if (PT == 'Passing Zone') {
-      Vi.value = '1000';
-      Vo.value = '0';
-      img.src = 'PassingZone.png';
-      img.height = 100;
-      img.width = 100;
-      img.parentNode.width = 100;
-      img_cap = 'Passing Zone';
+      inputParams.vi_input[seg_num-1] = 1000;
+      inputParams.vo_input[seg_num-1] = 0;
+      imgParams.src[seg_num-1] = 'PassingZone.png';
+      imgParams.height[seg_num-1] = 100;
+      imgParams.width[seg_num-1] = 100;
+      imgParams.td_width[seg_num-1] = 100;
+      imgParams.cap[seg_num-1] = 'Passing Zone';
     } else if (PT == 'Passing Constrained') {
-      img.src = 'PassingConstrained.png';
-      Vi.value = '1000';
-      Vo.value = '1500';
-      img.height = 100;
-      img.width = 100;
-      img.parentNode.width = 100;
-      img_cap = 'Passing Constrained';
+      imgParams.src[seg_num-1] = 'PassingConstrained.png';
+      inputParams.vi_input[seg_num-1] = 1000;
+      inputParams.vo_input[seg_num-1] = 1500;
+      imgParams.height[seg_num-1] = 100;
+      imgParams.width[seg_num-1] = 100;
+      imgParams.td_width[seg_num-1] = 100;
+      imgParams.cap[seg_num-1] = 'Passing Constrained';
     } else if (PT == 'Passing Lane') {
-      img.src = 'PassingLane.png';
-      Vi.value = '1000';
-      Vo.value = '0';
-      img.height = 100;
-      img.width = 150;
-      img.parentNode.width = 150;
-      img_cap = "Passing Lane";
+      imgParams.src[seg_num-1] = 'PassingLane.png';
+      inputParams.vi_input[seg_num-1] = 1000;
+      inputParams.vo_input[seg_num-1] = 0;
+      imgParams.height[seg_num-1] = 100;
+      imgParams.width[seg_num-1] = 150;
+      imgParams.td_width[seg_num-1] = 150;
+      imgParams.cap[seg_num-1] = "Passing Lane";
     }
-
-    img_cap_row.cells[seg_num - 1].innerHTML = img_cap;
   }
 
   // function toggleActive(seg_num) {
@@ -336,14 +400,15 @@
 
   // If check horizontal curves button
   function changeHC(seg_num, subseg_num){
-    var is_hc = document.getElementById("is_hc" + (seg_num));
+    // var is_hc = document.getElementById("is_hc" + (seg_num));
+    var is_hc = inputParams.is_hc[seg_num-1];
     var toggler = document.getElementById("hc_param" + (seg_num));
     var hc_table = document.getElementById("hc_table" + (seg_num));
 
     var subdesign_radius = document.getElementsByClassName("design_radius" + (subseg_num));
 
     // Only shows one sub table
-    if (is_hc.checked){
+    if (is_hc){
       // add required attribute to subsegment
       // subdesign_radius.required = true;
       // console.log(subdesign_radius.required);
@@ -356,7 +421,7 @@
       // } else {
       //   console.log("Cannot out more than one");
       // }
-    if (!is_hc.checked){
+    if (!is_hc){
       if (toggle_seg == seg_num){
         hc_table.style.display = 'none';
         toggle_seg = -1;
@@ -419,10 +484,10 @@
     let pmhvfl = json.pmhvfl;
 
     // Two lane highway
-    document.getElementById('LW_input').value = lw;
-    document.getElementById('SW_input').value = sw;
-    document.getElementById('APD_input').value = apd;
-    document.getElementById('PMHVFL_input').value = pmhvfl;
+    inputParams.lw = lw;
+    inputParams.sw = sw;
+    inputParams.apd = apd;
+    inputParams.pmhvfl = pmhvfl;
 
     // Segments
     for (let i=0; i<json.segments.length; i++) {
@@ -430,20 +495,25 @@
         addSegment();
       }
       setTimeout(function() {
-        const pass_type = document.getElementById('passing_type'+(i+1))
-        pass_type.options.item(json.segments[i].passing_type+1).selected = true;
+        // const pass_type = document.getElementById('passing_type'+(i+1))
+        // pass_type.options.item(json.segments[i].passing_type+1).selected = true;
+        if (json.segments[i].passing_type == 0)
+          inputParams.passing_type[i] = "Passing Constrained";
+        else if (json.segments[i].passing_type == 1)
+          inputParams.passing_type[i] = "Passing Zone";
+        else if (json.segments[i].passing_type == 2)
+          inputParams.passing_type[i] = "Passing Lane";
         // Fire segment change
         changeSegment(i+1);
-        document.getElementById('seg_length'+(i+1)).value = json.segments[i].length;
-        document.getElementById('seg_grade'+(i+1)).value = json.segments[i].grade;
-        document.getElementById('seg_Spl'+(i+1)).value = json.segments[i].spl;
-        document.getElementById('is_hc'+(i+1)).checked = json.segments[i].is_hc;
-        // document.getElementById('hc_param'+(i+1)).checked = json.segments[i].is_hc;
-        document.getElementById('vi_input'+(i+1)).value = json.segments[i].volume;
-        document.getElementById('vo_input'+(i+1)).value = json.segments[i].volume_op;
-        document.getElementById('vc_select'+(i+1)).options.item(json.segments[i].vertical_class-1).selected = true;
-        document.getElementById('PHF_input'+(i+1)).value = json.segments[i].phf;
-        document.getElementById('PHV_input'+(i+1)).value = json.segments[i].phv;
+        inputParams.seg_length[i] = json.segments[i].length;
+        inputParams.seg_grade[i] = json.segments[i].grade;
+        inputParams.seg_Spl[i] = json.segments[i].spl;
+        inputParams.is_hc[i] = json.segments[i].is_hc;
+        inputParams.vi_input[i] = json.segments[i].volume;
+        inputParams.vo_input[i] = json.segments[i].volume_op;
+        inputParams.vc_select[i] = json.segments[i].vertical_class.toString();
+        inputParams.phf[i] = json.segments[i].phf;
+        inputParams.phv[i] = json.segments[i].phv;
 
 
         var hc_table = document.getElementById("hc_table"+(i+1));
@@ -515,15 +585,15 @@
 
       jsonData.segments.push(segments_dict);
       jsonData.segments[i].passing_type = pass_type;
-      jsonData.segments[i]["length"] = document.getElementById('seg_length'+(i+1)).value;
-      jsonData.segments[i]["grade"] = document.getElementById('seg_grade'+(i+1)).value;
-      jsonData.segments[i]["spl"] = document.getElementById('seg_Spl'+(i+1)).value;
-      jsonData.segments[i]["is_hc"] = document.getElementById('is_hc'+(i+1)).checked;
-      jsonData.segments[i]["volume"] = document.getElementById('vi_input'+(i+1)).value;
-      jsonData.segments[i]["volume_op"] = document.getElementById('vo_input'+(i+1)).value;
-      jsonData.segments[i]["vertical_class"] = ver_cls.options[ver_cls.selectedIndex].text;
-      jsonData.segments[i]["phf"] = document.getElementById('PHF_input'+(i+1)).value;
-      jsonData.segments[i]["phv"] = document.getElementById('PHV_input'+(i+1)).value;
+      jsonData.segments[i]["length"] = parseFloat(inputParams.seg_length[i]);
+      jsonData.segments[i]["grade"] = parseFloat(inputParams.seg_grade[i]);
+      jsonData.segments[i]["spl"] = parseFloat(inputParams.seg_Spl[i]);
+      jsonData.segments[i]["is_hc"] = inputParams.is_hc[i];
+      jsonData.segments[i]["volume"] = inputParams.vi_input[i];
+      jsonData.segments[i]["volume_op"] = inputParams.vo_input[i];
+      jsonData.segments[i]["vertical_class"] = inputParams.vc_select[i];
+      jsonData.segments[i]["phf"] = inputParams.phf[i];
+      jsonData.segments[i]["phv"] = inputParams.phv[i];
       
       console.log(subseg_num);
       for (let j=0; j < subseg_num; j++) {
@@ -543,6 +613,7 @@
 
     }
 
+    // Cannot download in the desktop
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(jsonData));
     const jOut = document.getElementById('jsonOutput');
     jOut.setAttribute('href', dataStr);
@@ -560,22 +631,246 @@
 
   <h1 class="text-3xl font-bold underline">HCM Calulator Chap15</h1>
 
-  <label>JSON Input</label> <input type="file" id="jsonInput" on:change={jsonInputHandler} accept=".json">
-  <!-- {:else}
-    {#if isSuccessVisible}	
-      <p class="error-alert" transition:fade={{duration:150}}>Data updated successfully</p>
-    {/if} -->
+  <div role="tablist" class="m-3 text-sm font-medium text-center border-b text-gray-500 dark:text-gray-400 dark:border-gray-700">
+    <ul class="flex flex-wrap -mb-px">
+      <li class="me-2">
+        <button role="tab" class="inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300" class:active={activeTab == 'calculation'} on:click={() => setActiveTab('calculation')}>Calculation</button>
+      </li>
+      <li class="me-2">
+        <button role="tab" class="inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300" class:active={activeTab == 'results'} on:click={() => setActiveTab('results')}>Results</button>
+      </li>
+    </ul>
+  </div>
+  {#if activeTab == 'calculation'}
 
-  {#if hasError == true}
-    <p class="error-alert">{errMessage}</p>
-  {/if}
+    <label>JSON Input</label> <input type="file" id="jsonInput" on:change={jsonInputHandler} accept=".json">
+    <!-- {:else}
+      {#if isSuccessVisible}	
+        <p class="error-alert" transition:fade={{duration:150}}>Data updated successfully</p>
+      {/if} -->
 
-  <form id="hcm15" class="mt-4" class:submitted on:submit|preventDefault={handleSubmit}>
-  <div class="w-full overflow-x-auto">
+    {#if hasError == true}
+      <p class="error-alert">{errMessage}</p>
+    {/if}
+
+    <form id="hcm15" class="mt-4" class:submitted on:submit|preventDefault={handleSubmit}>
+      <div class="w-full overflow-x-auto">
+        <table class="table w-full">
+          <thead>
+            <tr>
+              <!-- <th>Active</th> -->
+              <th>Segment</th>
+              <th>Passing Type</th>
+              <th>Length</th>
+              <th>Grade</th>
+              <th>Posted Speed Limit</th>
+              <th>Horizontal Curves</th>
+              <th>Horizontal Params</th>
+              <th>Demand Volume</th>
+              <th>Demand Volume (O)</th>
+              <th>Vertical Class</th>
+              <th>Peak Hour Factor</th>
+              <th>Heavy Vehicle Per.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each rows as row}
+              <Row seg_num={row.seg_num} subseg_num={row.subrows.length} changeSegment={changeSegment} changeHC={changeHC} toggleHCParams={toggleHCParams} inputParams={inputParams}/>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+      <div class="grid auto-cols-max grid-flow-col md:grid-cols-2 sm:grid-cols-1 grid-cols-1">
+        <div class="parameters flex justify-start overflow-x-auto">
+          <table class="table w-full">
+            <tbody>
+              <tr>
+                <td style="display: inline-block;">Lane Width (ft): </td>
+                <td>
+                  <input
+                    type="text"
+                    id="LW_input"
+                    placeholder="Type here"
+                    class="input-label input w-full max-w-xs"
+                    bind:value={inputParams.lw}
+                    pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+                    autocomplete="off"
+                    required
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td style="display: inline-block;">Shoulder Width (ft): </td>
+                <td>
+                  <input
+                    type="text"
+                    id="SW_input"
+                    placeholder="Type here"
+                    class="input-label input w-full max-w-xs"
+                    bind:value={inputParams.sw}
+                    pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+                    autocomplete="off"
+                    required
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td style="display: inline-block;">Access Point Density (access points/mi): </td>
+                <td>
+                  <input
+                    type="text"
+                    id="APD_input"
+                    placeholder="Type here"
+                    class="input-label input w-full max-w-xs"
+                    bind:value={inputParams.apd}
+                    pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+                    autocomplete="off"
+                    required
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td style="display: inline-block;">Percentage Multiplier for <br> Heavy Vehicles in the Faster / Passing Lane: <br>*Used only when Passing Lane included</td>
+                <td>
+                  <input
+                    type="text"
+                    id="PMHVFL_input"
+                    bind:value={inputParams.pmhvfl}
+                    placeholder="Type here"
+                    class="input-label input w-full max-w-xs"
+                    pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+                    autocomplete="off"
+                    required
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        {#each rows as row}
+        <div class="hc_table overflow-x-auto card card-compact w-full bg-base-100 shadow-xl" id="hc_table{row.seg_num}" style="display:none;">
+          <div class="card-body">
+          <table class="table table-compact">
+            <thead>
+              <caption class="flex justify-start"><b>Segment {row.seg_num}</b></caption>
+              <tr>
+                <th>Subsegment</th>
+                <th>Length</th>
+                <th>Design Radius</th>
+                <th>Superelevation</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each row.subrows as subrow}
+                <SubRow subseg_num={subrow.subseg_num}/>
+              {/each}
+            </tbody>
+            <div class="flex justify-end">
+              <button class="btn btn-outline btn-sm" on:click={addSubSegment(row.seg_num)} type="button">Add</button>
+              <button class="btn btn-outline btn-sm" on:click={removeSubSegment(row.seg_num)} type="button">Remove</button>
+            </div>
+        </div>
+        </div>
+        {/each}
+      </div>
+      <div class="overflow-x-auto">
+        <table class="flex justify-start" id="seg_imgs">
+          <tbody>
+            <tr class="table_img">
+              {#each rows as row}
+                <td width={imgParams.td_width[row.seg_num-1]}><img src={imgParams.src[row.seg_num-1]} alt="segment" id="seg_img{row.seg_num}" height={imgParams.height[row.seg_num-1]} width={imgParams.width[row.seg_num-1]} /></td>
+              {/each}
+            </tr>
+            <tr class="table_p">
+              {#each rows as row}
+                <td>{imgParams.cap[row.seg_num-1]}</td>
+              {/each}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="flex justify-end">
+        <a class="btn" on:click={jsonOutputHandler} type="submit" id="jsonOutput" on:change={jsonOutputHandler}>Export as JSON</a>
+        <button class="btn" on:click={resetParams} type="button">Reset Params</button>
+        <Calc rows_len={rows.length} rows={rows} inputParams={inputParams} outputParams={outputParams}/>
+        <button class="btn" on:click={addSegment} type="button">Add Segment</button>
+        <button class="btn" on:click={removeSegment} type="button">Remove Segment</button>
+      </div>
+    </form>
+
+    <!-- <canvas id="simulation-canvas"></canvas> -->
+    <!-- <pre id="simulation-canvas"></pre> -->
+
+    <div class="los overflow-x-auto">
+      <h3>Outputs</h3>
+      <table class="table w-full">
+        <thead>
+          <tr>
+            <th></th>
+            {#each rows as row}
+              <th>Segment {row.seg_num}</th>
+            {/each}
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr>
+            <th id="ffs">Free-flow Speed (mi/hr): </th>
+            {#each rows as row}
+              <td id="ffs{row.seg_num}">{outputParams.ffs[row.seg_num-1]}</td>
+            {/each}
+          </tr>
+          <tr>
+            <th id="avgspd">Average Speed (mi/hr): </th>
+            {#each rows as row}
+              <td id="avgspd{row.seg_num}">{outputParams.avgspd[row.seg_num-1]}</td>
+            {/each}
+          </tr>
+          <tr>
+            <th id="pf">Percent followers in the <br> analysis direction (%): </th>
+            {#each rows as row}
+              <td id="pf{row.seg_num}">{outputParams.pf[row.seg_num-1]}</td>
+            {/each}
+          </tr>
+          <tr>
+            <th id="fd">Followers Density (followers/mi): </th>
+            {#each rows as row}
+              <td id="fd{row.seg_num}">{outputParams.fd[row.seg_num-1]}</td>
+            {/each}
+          </tr>
+          <tr>
+            <th id="seglos">Segment LOS: </th>
+            {#each rows as row}
+              <td id="seglos{row.seg_num}">{outputParams.seglos[row.seg_num-1]}</td>
+            {/each}
+          </tr>
+        </tbody>
+      </table>
+      <p id="los">Facility LOS: {outputParams.los}</p>
+      <p id="fdF">Facility Follower Density: {outputParams.fdF}</p>
+      <p id="error">Error Message: </p>
+  </div>
+  {:else if activeTab == 'results'}
+  <div class="overflow-x-auto">
+    <table class="flex justify-start table-fixed" id="seg_imgs">
+      <tbody>
+        <tr class="table_img">
+          {#each rows as row}
+            <td width={imgParams.td_width[row.seg_num-1]}><img src={imgParams.src[row.seg_num-1]} alt="segment" id="seg_img{row.seg_num}" height={imgParams.height[row.seg_num-1]} width={imgParams.width[row.seg_num-1]} /></td>
+          {/each}
+        </tr>
+        <tr class="table_p">
+          {#each rows as row}
+            <td>{imgParams.cap[row.seg_num-1]}</td>
+          {/each}
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="overflow-x-auto">
     <table class="table w-full">
       <thead>
         <tr>
-          <!-- <th>Active</th> -->
           <th>Segment</th>
           <th>Passing Type</th>
           <th>Length</th>
@@ -591,174 +886,107 @@
         </tr>
       </thead>
       <tbody>
-        {#each rows as row}
-          <Row seg_num={row.seg_num} subseg_num={row.subrows.length} changeSegment={changeSegment} changeHC={changeHC} toggleHCParams={toggleHCParams} />
+        {#each rows as row, i}
+        <tr>
+            <th>{i+1}</th>
+            <td>{inputParams.passing_type[i]}</td>
+            <td>{inputParams.seg_length[i]}
+              <label for="label">
+              <span class="label-text-alt"></span>
+              <span class="label-text-alt">mi</span>
+            </td>
+            <td>{inputParams.seg_grade[i]}
+              <label for="label">
+              <span class="label-text-alt"></span>
+              <span class="label-text-alt">%</span>
+            </td>
+            <td>{inputParams.seg_Spl[i]}
+              <label for="label">
+              <span class="label-text-alt"></span>
+              <span class="label-text-alt">mi</span>
+            </td>
+            <td>{inputParams.is_hc[i]}</td>
+            <td></td>
+            <td>{inputParams.vi_input[i]}
+              <label for="label">
+              <span class="label-text-alt"></span>
+              <span class="label-text-alt">veh/hr</span>
+            </td>
+            <td>{inputParams.vo_input[i]}
+              <label for="label">
+              <span class="label-text-alt"></span>
+              <span class="label-text-alt">veh/hr</span>
+            </td>
+            <td>{inputParams.vc_select[i]}</td>
+            <td>{inputParams.phf[i]}</td>
+            <td>{inputParams.phv[i]}
+              <label for="label">
+              <span class="label-text-alt"></span>
+              <span class="label-text-alt">%</span>
+            </td>
+        </tr>
         {/each}
       </tbody>
+
+          <!-- <td>
+
+            <p>{inputParams.pmhvfl}</p>
+          </td> -->
     </table>
   </div>
-  <div class="grid auto-cols-max grid-flow-col md:grid-cols-2 sm:grid-cols-1 grid-cols-1">
-    <div class="parameters flex justify-start overflow-x-auto">
+    <div class="los overflow-x-auto">
+      <h3>Outputs</h3>
       <table class="table w-full">
+        <thead>
+          <tr>
+            <th></th>
+            {#each rows as row}
+              <th>Segment {row.seg_num}</th>
+            {/each}
+          </tr>
+        </thead>
+
         <tbody>
           <tr>
-            <td style="display: inline-block;">Lane Width (ft): </td>
-            <td>
-              <input
-                type="text"
-                id="LW_input"
-                placeholder="Type here"
-                class="input-label input w-full max-w-xs"
-                value="12"
-                pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-                autocomplete="off"
-                required
-              />
-            </td>
+            <th id="ffs">Free-flow Speed (mi/hr): </th>
+            {#each rows as row}
+              <td id="ffs{row.seg_num}">{outputParams.ffs[row.seg_num-1]}</td>
+            {/each}
           </tr>
           <tr>
-            <td style="display: inline-block;">Shoulder Width (ft): </td>
-            <td>
-              <input
-                type="text"
-                id="SW_input"
-                placeholder="Type here"
-                class="input-label input w-full max-w-xs"
-                value="6"
-                pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-                autocomplete="off"
-                required
-              />
-            </td>
+            <th id="avgspd">Average Speed (mi/hr): </th>
+            {#each rows as row}
+              <td id="avgspd{row.seg_num}">{outputParams.avgspd[row.seg_num-1]}</td>
+            {/each}
           </tr>
           <tr>
-            <td style="display: inline-block;">Access Point Density (access points/mi): </td>
-            <td>
-              <input
-                type="text"
-                id="APD_input"
-                placeholder="Type here"
-                class="input-label input w-full max-w-xs"
-                value="2"
-                pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-                autocomplete="off"
-                required
-              />
-            </td>
+            <th id="pf">Percent followers in the <br> analysis direction (%): </th>
+            {#each rows as row}
+              <td id="pf{row.seg_num}">{outputParams.pf[row.seg_num-1]}</td>
+            {/each}
           </tr>
           <tr>
-            <td style="display: inline-block;">Percentage Multiplier for <br> Heavy Vehicles in the Faster / Passing Lane: <br>*Used only when Passing Lane included</td>
-            <td>
-              <input
-                type="text"
-                id="PMHVFL_input"
-                placeholder="Type here"
-                class="input-label input w-full max-w-xs"
-                value="0"
-                pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-                autocomplete="off"
-                required
-              />
-            </td>
+            <th id="fd">Followers Density (followers/mi): </th>
+            {#each rows as row}
+              <td id="fd{row.seg_num}">{outputParams.fd[row.seg_num-1]}</td>
+            {/each}
+          </tr>
+          <tr>
+            <th id="seglos">Segment LOS: </th>
+            {#each rows as row}
+              <td id="seglos{row.seg_num}">{outputParams.seglos[row.seg_num-1]}</td>
+            {/each}
           </tr>
         </tbody>
       </table>
-    </div>
-    {#each rows as row}
-    <div class="hc_table overflow-x-auto card card-compact w-full bg-base-100 shadow-xl" id="hc_table{row.seg_num}" style="display:none;">
-      <div class="card-body">
-      <table class="table table-compact">
-        <thead>
-          <caption class="flex justify-start"><b>Segment {row.seg_num}</b></caption>
-          <tr>
-            <th>Subsegment</th>
-            <th>Length</th>
-            <th>Design Radius</th>
-            <th>Superelevation</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each row.subrows as subrow}
-            <SubRow subseg_num={subrow.subseg_num}/>
-          {/each}
-        </tbody>
-        <div class="flex justify-end">
-          <button class="btn btn-outline btn-sm" on:click={addSubSegment(row.seg_num)} type="button">Add</button>
-          <button class="btn btn-outline btn-sm" on:click={removeSubSegment(row.seg_num)} type="button">Remove</button>
-        </div>
-    </div>
-    </div>
-    {/each}
-  </div>
-  <div class="overflow-x-auto">
-    <table class="flex justify-start" id="seg_imgs">
-      <tbody>
-        <tr class="table_img"><td><img src="segment.jpg" alt="segment" id="seg_img1" height="100" width="100" /></td></tr>
-        <tr class="table_p"><td>undefined</td></tr>
-      </tbody>
-    </table>
+      <p id="los">Facility LOS: {outputParams.los}</p>
+      <p id="fdF">Facility Follower Density: {outputParams.fdF}</p>
+      <p id="error">Error Message: </p>
   </div>
   <div class="flex justify-end">
+    <!-- <button class="btn" on:click={startSimulation} type="button">Export as PDF</button> -->
     <button class="btn" on:click={startSimulation} type="button">Launch SUMO</button>
-    <a class="btn" on:click={jsonOutputHandler} type="submit" id="jsonOutput" on:change={jsonOutputHandler}>Export as JSON</a>
-    <button class="btn" on:click={resetParams} type="button">Reset Params</button>
-    <Calc rows_len={rows.length} rows={rows}/>
-    <button class="btn" on:click={addSegment} type="button">Add Segment</button>
-    <button class="btn" on:click={removeSegment} type="button">Remove Segment</button>
   </div>
-  </form>
-
-  <!-- <canvas id="simulation-canvas"></canvas> -->
-  <pre id="simulation-canvas"></pre>
-
-  <div class="los overflow-x-auto">
-    <h3>Outputs</h3>
-    <table class="table w-full">
-      <thead>
-        <tr>
-          <th></th>
-          {#each rows as row}
-            <th>Segment {row.seg_num}</th>
-          {/each}
-        </tr>
-      </thead>
-
-      <tbody>
-        <tr>
-          <th id="ffs">Free-flow Speed (mi/hr): </th>
-          {#each rows as row}
-            <td id="ffs{row.seg_num}"></td>
-          {/each}
-        </tr>
-        <tr>
-          <th id="avgspd">Average Speed (mi/hr): </th>
-          {#each rows as row}
-            <td id="avgspd{row.seg_num}"></td>
-          {/each}
-        </tr>
-        <tr>
-          <th id="pf">Percent followers in the <br> analysis direction (%): </th>
-          {#each rows as row}
-            <td id="pf{row.seg_num}"></td>
-          {/each}
-        </tr>
-        <tr>
-          <th id="fd">Followers Density (followers/mi): </th>
-          {#each rows as row}
-            <td id="fd{row.seg_num}"></td>
-          {/each}
-        </tr>
-        <tr>
-          <th id="seglos">Segment LOS: </th>
-          {#each rows as row}
-            <td id="seglos{row.seg_num}"></td>
-          {/each}
-        </tr>
-      </tbody>
-    </table>
-    <p id="los">Facility LOS: </p>
-    <p id="fdF">Facility Follower Density: </p>
-    <p id="error">Error Message: </p>
-  </div>
+  {/if}
 
 </div>
