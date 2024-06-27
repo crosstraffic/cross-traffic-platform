@@ -21,6 +21,7 @@
         var passing_type = [];
         var vc = 0; // Vertical class
         var rad = [];
+        var central_angle = [];
         var sup_ele = [];
         var is_hc = true;
         var Vi = 0;
@@ -127,14 +128,15 @@
             // ver_class = document.getElementById("vc_select"+(i+1)).value;
 
             var wasmSubSegment = [];
-            wasmSubSegment[0] = new WasmSubSegment(0.0, 0.0, 0, 0.0, 0.0);
+            wasmSubSegment[0] = new WasmSubSegment(0.0, 0.0, 0, 0.0, 0.0, 0.0);
 
             if (is_hc == true && subrows_len > 0){
                 for (let j=0; j < subrows_len; j++){
                     subSeg_len[i][j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("subseg_len"+(j+1))[0].value; // foot to mile
                     rad[j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("design_radius"+(j+1))[0].value;
+                    central_angle[j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("central_angle"+(j+1))[0].value;
                     sup_ele[j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("superelevation"+(j+1))[0].value;
-                    wasmSubSegment[j] = new WasmSubSegment(subSeg_len[i][j], 0.0, 0, rad[j], sup_ele[j]);
+                    wasmSubSegment[j] = new WasmSubSegment(subSeg_len[i][j], 0.0, 0, rad[j], central_angle[j], sup_ele[j]);
                 }
             }
 
@@ -170,10 +172,10 @@
                 fd = wasmTwoLaneHighways.determine_follower_density_pc_pz(i);
                 // If the segment is within the effective length of PL section
             }
-            // TODO: if users add another segment from one segment setting, error happens here.
-            fd_adj = wasmTwoLaneHighways.determine_adjustment_to_follower_density(i);
-
-            if (wasmTwoLaneHighways.get_segments()[i].passing_type != 2) {
+            if (wasmTwoLaneHighways.get_segments()[i].passing_type == 2) {
+                fd_adj = wasmTwoLaneHighways.determine_adjustment_to_follower_density(i);
+                fd_out = fd_adj;
+            } else if (wasmTwoLaneHighways.get_segments()[i].passing_type != 2) {
                 if (fd_adj > 0.0) {
                     fd_out = fd_adj;
                 } else {

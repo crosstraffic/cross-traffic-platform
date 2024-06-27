@@ -24,6 +24,7 @@ parser.add_argument('--subsegment_num', '--ss', type=int, nargs='+', default=[1]
 parser.add_argument('--seg_x', '--sx', type=parse_2d_array, nargs='+', default="1.0", help='x coordinates (segment length)')
 parser.add_argument('--seg_y', '--sy', type=parse_2d_array, nargs='+', default="0.0", help='y coordinates')
 parser.add_argument('--rad', '--r', type=parse_2d_array, nargs='+', default="0.0", help='Radius of subsegmnet')
+parser.add_argument('--c_angl', '--ca', type=parse_2d_array, nargs='+', default="0.0", help='Central Angle (deg)')
 parser.add_argument('--sup_ele', '--se', type=parse_2d_array, nargs='+', default="0.0", help='Super elevation of subsegmnet')
 parser.add_argument('--fdensity', '--fd', type=float, nargs='+', default=[100.0], help='Forward density')
 parser.add_argument('--bdensity', '--bd', type=float, nargs='+', default=[100.0], help='Backward density')
@@ -52,7 +53,7 @@ class HCMTopology:
     - rad [List]: Radius for each subsegments.
     - sup_ele [List]: Superelevation for each subsegments.
     '''
-    def __init__(self, root_dir: str, segment_num: int, subsegment_num: int, seg_x: float, seg_y: list[float], rad: list[float], sup_ele: list[float],
+    def __init__(self, root_dir: str, segment_num: int, subsegment_num: int, seg_x: float, seg_y: list[float], rad: list[float], c_angl: list[float], sup_ele: list[float],
                  fdensity: list[float], bdensity: list[float], vi: list[int], vo: list[int], num_lanes: list[int], speed: list[float], lane_width: float, phv: list[float]):
         self.root_dir = root_dir
 
@@ -63,12 +64,14 @@ class HCMTopology:
         seg_x = np.array(seg_x)[0]
         seg_y = np.array(seg_y)[0]
         rad = np.array(rad)[0]
+        c_angl = np.array(c_angl)[0]
         sup_ele = np.array(sup_ele)[0]
         self.subsegment_num = np.array(subsegment_num)
         self.seg_x = [[self.convert_mile_to_meter(x) for x in sx] for sx in seg_x]
         # self.seg_y = [[self.convert_mile_to_meter(y) for y in sy] for sy in seg_y]
         self.seg_y = [[0.0 for _ in range(len(sy))] for sy in seg_x]
         self.rad = [[self.convert_feet_to_meter(r) for r in rd] for rd in rad]
+        self.c_angl = c_angl
         self.sup_ele = sup_ele
         self.num_lanes = num_lanes
         self.speed = [self.convert_mph_to_kph(sp) for sp in speed]
@@ -88,6 +91,7 @@ class HCMTopology:
             <node id="3" x="+251.0" y="0.0" />
         </nodes>
         '''
+        # Initial node
         self.node_tree = ET.SubElement(self.node_root, 'node', id='1_1', x='0.0', y='0.0')
         cum_seg_x = 0
         cum_seg_y = 0
@@ -97,25 +101,51 @@ class HCMTopology:
         for i in range(1, self.segment_num+1):
             cum_subseg_x = 0
             for j in range(1, self.subsegment_num[i-1]+1):
-                cum_subseg_x += self.seg_x[i-1][j-1]
+                # cum_subseg_x += self.seg_x[i-1][j-1]
 
                 ### Horizontal Curve extension --> TODO: Using endpoint
-                # if self.rad[i-1][j-1] > 0: # theta will be changed
-                #     # For spiral curve
-                #     # A = math.sqrt(self.rad[i-1][j-1] * self.seg_x[i-1][j-1])
-                #     # X = cum_subseg_x - cum_subseg_x ** 5 / (40 * (A ** 4)) + cum_subseg_x ** 9 / (3456 * (A ** 8))
-                #     # Y = cum_subseg_x ** 3 / (6 * A ** 2) - cum_subseg_x ** 7 / (336 * (A ** 6)) + cum_subseg_x ** 11 / (42240 * (A ** 10))
-                #     # cum_seg_x += X * np.cos(theta)
-                #     # cum_seg_y += Y * np.sin(theta)
-                #     # theta += np.arctan(Y / X)
-                #     cum_seg_x += X
-                #     cum_seg_y += Y
-                #     theta += 0
-                # else:
-                cum_seg_x += self.seg_x[i-1][j-1] * np.cos(theta)
-                cum_seg_y += self.seg_x[i-1][j-1] * np.sin(theta)
+                if self.rad[i-1][j-1] > 0: # theta will be changed
+                    central_angle = self.c_angl[i-1][j-1]
+                    theta += central_angle
+                    R = self.rad[i-1][j-1]
+                    if central_angle == 0:
+                        L = self.seg_x[i-1][j-1]
+                    else:
+                        L = R * central_angle * math.pi / 180
 
-                # for s in range(spiral_num):
+                    # Without spiral curve
+                    # delta = 0.733
+                    # R = self.rad[i-1][j-1]
+                    # L = math.sqrt(R * delta) # self.seg_x[i-1][j-1])
+                    # D = 1 / R
+                    # T = R * np.tan(delta / 2)
+                    # M = R * (1 - np.cos(delta / 2))
+                    # E = R * (1 / np.cos(delta / 2) - 1)
+                    # C = 2 * R * np.sin(delta / 2)
+
+                    if np.sin(theta) != 0:
+                        Y = cum_seg_y + L / np.sin(theta)
+                        cum_seg_y += Y
+                    else:
+                        Y = cum_seg_y
+                    
+                    if np.cos(theta) != 0:
+                        X = cum_seg_x + L * np.cos(theta)
+                        cum_seg_x += X
+                    else:
+                        X = cum_seg_x
+                    
+                    # With spiral curve
+                    # A = math.sqrt(self.rad[i-1][j-1] * 0.733) # self.seg_x[i-1][j-1])
+                    # X = cum_subseg_x - cum_subseg_x ** 5 / (40 * (A ** 4)) + cum_subseg_x ** 9 / (3456 * (A ** 8))
+                    # Y = cum_subseg_x ** 3 / (6 * A ** 2) - cum_subseg_x ** 7 / (336 * (A ** 6)) + cum_subseg_x ** 11 / (42240 * (A ** 10))
+                    # cum_seg_x += X * np.cos(theta)
+                    # cum_seg_y += Y * np.sin(theta)
+                    # theta += np.arctan(Y / X)
+
+                else:
+                    cum_seg_x += self.seg_x[i-1][j-1] * np.cos(theta)
+                    cum_seg_y += self.seg_x[i-1][j-1] * np.sin(theta)
 
 
                 if i == 1:
@@ -133,19 +163,30 @@ class HCMTopology:
             <edge from="2" id="out" to="3" />
         </edges>
         '''
+        # First edge of the segment
         is_first = True
         for i in range(1, self.segment_num+1):
             
             if self.subsegment_num[i-1] == 1:
                 if i == 1:
-                    # Forward
-                    self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=str(i), _from=str(i) + '_1', to=str(i) + '_2', sampledSecond=str(self.vi[i-1]),
-                                                    numLanes=str(self.num_lanes[i-1]), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][0]), width=str(self.lane_width),
-                                                    density=str(self.fdensity[i-1]))
-                    # Backward
-                    self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=str(i + self.segment_num), _from=str(i) + '_2', to=str(i) + '_1', sampledSecond=str(self.vo[i-1]), 
-                                                numLanes=str(1), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][0]), width=str(self.lane_width),
-                                                density=str(self.bdensity[i-1]))
+                    if self.subsegment_num[i-1] == 1:
+                        # Forward
+                        self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=str(i), _from=str(i) + '_1', to=str(i) + '_2', sampledSecond=str(self.vi[i-1]),
+                                                        numLanes=str(self.num_lanes[i-1]), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][0]), width=str(self.lane_width),
+                                                        density=str(self.fdensity[i-1]))
+                        # Backward
+                        self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=str(i + self.segment_num), _from=str(i) + '_2', to=str(i) + '_1', sampledSecond=str(self.vo[i-1]), 
+                                                    numLanes=str(1), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][0]), width=str(self.lane_width),
+                                                    density=str(self.bdensity[i-1]))
+                    else:
+                        # Forward
+                        self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=str(i), _from=str(i) + '_1', to=str(i) + '_2', sampledSecond=str(self.vi[i-1]),
+                                                        numLanes=str(self.num_lanes[i-1]), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][0]), width=str(self.lane_width),
+                                                        density=str(self.fdensity[i-1]))
+                        # Backward
+                        self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=str(i + self.segment_num), _from=str(i) + '_2', to=str(i) + '_1', sampledSecond=str(self.vo[i-1]), 
+                                                    numLanes=str(1), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][0]), width=str(self.lane_width),
+                                                    density=str(self.bdensity[i-1]))
                 else:
                     if is_first:
                         # Forward
@@ -171,28 +212,45 @@ class HCMTopology:
                     edge_id_for = str(i) + '_' + str(j)
                     edge_id_back = str(i + self.segment_num) + '_' + str(self.subsegment_num[i-1] + 1 - j)
 
-                    # Forward
-                    if self.subsegment_num[i-1] == j:
-                        ### If the subsegment is the end of the segment
-                        self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_for, _from=str(i) + '_' + str(j), to=str(i) + '_' + str(j+1), sampledSecond=str(self.vi[i-1]),
-                                                        numLanes=str(self.num_lanes[i-1]), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][j-1]), width=str(self.lane_width),
-                                                        density=str(self.fdensity[i-1]))
-                    else:
-                        ### If the subsegment continues
+                    if i == 1:
+                        # Forward
                         self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_for, _from=str(i) + '_' + str(j), to=str(i) + '_' + str(j+1), sampledSecond=str(self.vi[i-1]),
                                                         numLanes=str(self.num_lanes[i-1]), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][j-1]), width=str(self.lane_width),
                                                         density=str(self.fdensity[i-1]))
 
-                    # Backward
-                    if self.subsegment_num[-1] == 1:
-                        ### If the subsegment at the last segment is 1 (no subsegment)
-                        self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_back, _from=str(self.segment_num + 1 - i) + '_' + str(self.subsegment_num[-1]), to=str(self.segment_num - i) + '_' + str(self.subsegment_num[-2]), sampledSecond=str(self.vo[i-1]), 
-                                                    numLanes=str(1), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][j-1]), width=str(self.lane_width),
-                                                    density=str(self.bdensity[i-1]))
+                        # Backward
+                        self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_back + '_' + str(j), _from=str(i) + '_' + str(j+1), to=str(i) + '_' + str(j), sampledSecond=str(self.vi[i-1]),
+                                                        numLanes=str(self.num_lanes[i-1]), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][j-1]), width=str(self.lane_width),
+                                                        density=str(self.fdensity[i-1]))
                     else:
-                        self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_back, _from=str(self.segment_num + 1 - i) + '_' + str(self.subsegment_num[-1] + 2 - j), to=str(self.segment_num + 1 - i) + '_' + str(self.subsegment_num[-1] + 1 - j), sampledSecond=str(self.vo[i-1]), 
-                                                    numLanes=str(1), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][j-1]), width=str(self.lane_width),
-                                                    density=str(self.bdensity[i-1]))
+                        ### If the subsegment is the end of the segment
+                        if is_first:
+                            # Forward
+                            # if self.subsegment_num[i-1] == j:
+                            self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_for, _from=str(i-1) + '_' + str(self.subsegment_num[i-1]), to=str(i) + '_1', sampledSecond=str(self.vi[i-1]),
+                                                            numLanes=str(self.num_lanes[i-1]), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][j-1]), width=str(self.lane_width),
+                                                            density=str(self.fdensity[i-1]))
+                            # Backward --> Might be error
+                            self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_back, _from=str(i) + '_1', to=str(i-1) + '_' + str(self.subsegment_num[i-1]), sampledSecond=str(self.vo[i-1]), 
+                                                        numLanes=str(1), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][j-1]), width=str(self.lane_width),
+                                                        density=str(self.bdensity[i-1]))
+
+                            is_first = False
+                        else:
+                            ### If the subsegment continues
+                            # Forward
+                            self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_for, _from=str(i) + '_' + str(j-1), to=str(i) + '_' + str(j), sampledSecond=str(self.vi[i-1]),
+                                                            numLanes=str(self.num_lanes[i-1]), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][j-1]), width=str(self.lane_width),
+                                                            density=str(self.fdensity[i-1]))
+
+                            # Backward
+                            self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_back, _from=str(i) + '_' + str(j), to=str(i) + '_' + str(j-1), sampledSecond=str(self.vo[i-1]), 
+                                                        numLanes=str(1), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][j-1]), width=str(self.lane_width),
+                                                        density=str(self.bdensity[i-1]))
+
+                        # if self.subsegment_num[-1] == 1:
+                        #     ### If the subsegment at the last segment is 1 (no subsegment)
+                        # else:
 
     def create_add_file(self):
         '''
@@ -295,7 +353,7 @@ class HCMTopology:
 
 
 hcm_topology = HCMTopology(args.root_dir, args.segment_num, args.subsegment_num, 
-                            args.seg_x, args.seg_y, args.rad, args.sup_ele,
+                            args.seg_x, args.seg_y, args.rad, args.c_angl, args.sup_ele,
                             args.fdensity, args.bdensity, args.vi, args.vo,
                             args.num_lanes, args.speed, args.lane_width, args.phv)
 

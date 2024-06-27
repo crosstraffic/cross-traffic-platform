@@ -6,9 +6,15 @@ license = "MIT OR Apache-2.0"
 description = "Web application for HCM."
 repository = "https://github.com/crosstraffic/cross-traffic-web-calculator"
 
+[features]
+pybindings = ["pyo3"]
+jsbindings = ["wasm-bindgen"]
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 vercel_runtime = { version = "1.1.0" }
 
 [dependencies]
+wasm-bindgen = { version = "0.2.90", optional = true}
+pyo3 = { version = "0.21.2", features = ["extension-module"], optional = true }
 crosstraffic_middleware = "0.1.0"

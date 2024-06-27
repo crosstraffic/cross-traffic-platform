@@ -5,14 +5,21 @@
   import init, { WasmSegment, WasmSubSegment, WasmTwoLaneHighways } from "HCM-middleware";
   import { onMount } from "svelte";
   import { Command } from "@tauri-apps/api/shell";
+  import { writeFile } from "@tauri-apps/api/fs";
+  import { appDataDir } from "@tauri-apps/api/path";
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
   });
 
 
+  function isTauri() {
+    return typeof window.__TAURI__ !== 'undefined';
+  }
+
+
   let inputParams = {
-    passing_type: ["Passing Constrained"],
+    passing_type: ["undefined"],
     seg_length: [0],
     seg_grade: [0],
     seg_Spl: [0],
@@ -26,6 +33,13 @@
     sw: 6,
     apd: 2,
     pmhvfl: 0,
+  }
+
+  let inputSubParams = {
+    subseg_length: [0],
+    design_radius: [0],
+    central_angle: [0],
+    superelevation: [0],
   }
 
   let outputParams = {
@@ -69,6 +83,7 @@
     let seg_x = new Array(rows.length);
     let seg_y = new Array(rows.length);
     let rad = new Array(rows.length);
+    let c_angl = new Array(rows.length);
     let sup_ele = new Array(rows.length);
     let speed = new Array(rows.length);
     let lane_width = inputParams.lw;
@@ -85,6 +100,7 @@
       seg_x[i] = new Array(rows[i].subrows.length+1);
       seg_y[i] = new Array(rows[i].subrows.length+1);
       rad[i] = new Array(rows[i].subrows.length+1);
+      c_angl[i] = new Array(rows[i].subrows.length+1);
       sup_ele[i] = new Array(rows[i].subrows.length+1);
     }
 
@@ -95,11 +111,14 @@
       // let pt = pass_type.options[pass_type.selectedIndex].text;
       let pt = inputParams.passing_type[i];
       // if (document.getElementById("is_hc"+(i+1)).checked) {
+      console.log(rows[i].subrows.length);
       if (inputParams.is_hc[i]) {
         for (let j=0; j < rows[i].subrows.length; j++) {
-          seg_x[i][j] = document.getElementById('subseg_len'+(j+1)).value;
+          seg_x[i][j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName('subseg_len'+(j+1))[0].value;
           seg_y[i][j] = 0.0;
+          console.log(seg_x[i][j]);
           rad[i][j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("design_radius"+(j+1))[0].value;
+          c_angl[i][j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("central_angle"+(j+1))[0].value;
           sup_ele[i][j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("superelevation"+(j+1))[0].value;
         }
       } else {
@@ -221,6 +240,22 @@
     }
     set_command_list.push(rad_str);
 
+    // Add Central Angle
+    set_command_list.push('--ca');
+    let c_angl_str = "";
+    for (let i=0; i < rows.length; i++) {
+      if (inputParams.is_hc[i]) {
+        for (let j=0; j < rows[i].subrows.length; j++) {
+          c_angl_str += c_angl[i][j].toString();
+        }
+      } else {
+          c_angl_str += "0.0";
+      }
+      if (i != rows.length-1)
+        c_angl_str += ";";
+    }
+    set_command_list.push(c_angl_str);
+
     // Add Super Elevation
     set_command_list.push('--sup_ele');
     let sup_ele_str = "";
@@ -312,6 +347,18 @@
     imgParams.cap.push("undefined");
     inputParams.phf.push(0.94);
     inputParams.phv.push(5);
+    inputParams.is_hc.push(false);
+    inputParams.seg_length.push(0);
+    inputParams.seg_grade.push(0);
+    inputParams.seg_Spl.push(0);
+    inputParams.vi_input.push(0);
+    inputParams.vo_input.push(0);
+    inputParams.vc_select.push("1");
+
+    inputSubParams.subseg_length.push(0);
+    inputSubParams.design_radius.push(0);
+    inputSubParams.central_angle.push(0);
+    inputSubParams.superelevation.push(0);
   }
 
   function removeSegment() {
@@ -526,9 +573,10 @@
         for (let j=0; j<json.segments[i].subsegments.length; j++) {
           if (j != 0) addSubSegment(i+1); 
           setTimeout(function() {
-            document.getElementById("hc_table"+(i+1)).getElementsByClassName("subseg_len"+(j+1))[0].value = json.segments[i].subsegments[j].length;
-            document.getElementById("hc_table"+(i+1)).getElementsByClassName("design_radius"+(j+1))[0].value = json.segments[i].subsegments[j].design_rad;
-            document.getElementById("hc_table"+(i+1)).getElementsByClassName("superelevation"+(j+1))[0].value = json.segments[i].subsegments[j].sup_ele;
+            inputSubParams.subseg_length[j] = json.segments[i].subsegments[j].length;
+            inputSubParams.design_radius[j] = json.segments[i].subsegments[j].design_rad;
+            inputSubParams.central_angle[j] = json.segments[i].subsegments[j].central_angle;
+            inputSubParams.superelevation[j] = json.segments[i].subsegments[j].sup_ele;
           }, 10);
         }
       }, 10);
@@ -536,7 +584,7 @@
 
   }
 
-  function jsonOutputHandler() {
+  async function jsonOutputHandler() {
 
     const jsonData = { "segments": [],
                       "lane_width": 0.0,
@@ -545,10 +593,10 @@
                       "pmhvfl": 0.0,
                       "l_de": 0.0
                     };
-    jsonData["lane_width"] = document.getElementById('LW_input').value;
-    jsonData["shoulder_width"] = document.getElementById('SW_input').value;
-    jsonData["apd"] = document.getElementById('APD_input').value;
-    jsonData["pmhvfl"] = document.getElementById('PMHVFL_input').value;
+    jsonData["lane_width"] = parseInt(document.getElementById('LW_input').value);
+    jsonData["shoulder_width"] = parseInt(document.getElementById('SW_input').value);
+    jsonData["apd"] = parseInt(document.getElementById('APD_input').value);
+    jsonData["pmhvfl"] = parseInt(document.getElementById('PMHVFL_input').value);
 
     let seg_num = rows.length;
     for (let i=0; i < seg_num; i++) {
@@ -591,33 +639,53 @@
       jsonData.segments[i]["is_hc"] = inputParams.is_hc[i];
       jsonData.segments[i]["volume"] = inputParams.vi_input[i];
       jsonData.segments[i]["volume_op"] = inputParams.vo_input[i];
-      jsonData.segments[i]["vertical_class"] = inputParams.vc_select[i];
+      jsonData.segments[i]["vertical_class"] = parseInt(inputParams.vc_select[i]);
       jsonData.segments[i]["phf"] = inputParams.phf[i];
       jsonData.segments[i]["phv"] = inputParams.phv[i];
       
-      console.log(subseg_num);
       for (let j=0; j < subseg_num; j++) {
         const subsegments_dict = {
           "length": 0.0,
           "avg_speed": 0.0,
           "hor_class": 0,
           "design_rad": 0.0,
+          "central_angle": 0.0,
           "sup_ele": 0.0
         }
 
         jsonData.segments[i]["subsegments"].push(subsegments_dict);
-        jsonData.segments[i]["subsegments"][j]["length"] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("subseg_len"+(j+1))[0].value;
-        jsonData.segments[i]["subsegments"][j]["design_rad"] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("design_radius"+(j+1))[0].value;
-        jsonData.segments[i]["subsegments"][j]["sup_ele"] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("superelevation"+(j+1))[0].value;
+        jsonData.segments[i]["subsegments"][j]["length"] = parseFloat(document.getElementById("hc_table"+(i+1)).getElementsByClassName("subseg_len"+(j+1))[0].value);
+        jsonData.segments[i]["subsegments"][j]["design_rad"] = parseFloat(document.getElementById("hc_table"+(i+1)).getElementsByClassName("design_radius"+(j+1))[0].value);
+        jsonData.segments[i]["subsegments"][j]["central_angle"] = parseFloat(document.getElementById("hc_table"+(i+1)).getElementsByClassName("central_angle"+(j+1))[0].value);
+        jsonData.segments[i]["subsegments"][j]["sup_ele"] = parseFloat(document.getElementById("hc_table"+(i+1)).getElementsByClassName("superelevation"+(j+1))[0].value);
       }
 
     }
 
-    // Cannot download in the desktop
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(jsonData));
-    const jOut = document.getElementById('jsonOutput');
-    jOut.setAttribute('href', dataStr);
-    jOut.setAttribute('download', 'hcm15_output.json');
+
+    if (isTauri()) {
+      try {
+        const appDirectory = await appDataDir();
+        const filePath = `${appDirectory}/hcm15_output.json`;
+
+        await writeFile({
+          path: filePath,
+          contents: JSON.stringify(jsonData, null, 2)
+        });
+
+        console.log(`File saved successfully to ${filePath}`);
+      } catch (error) {
+        console.log('Error saving file:', error);
+      }
+    } else {
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(jsonData));
+      const jOut = document.getElementById('jsonOutput');
+      jOut.setAttribute('href', dataStr);
+      jOut.setAttribute('download', 'hcm15_output.json');
+
+    }
+
+
   }
 
   function resetParams() {
@@ -757,12 +825,13 @@
                 <th>Subsegment</th>
                 <th>Length</th>
                 <th>Design Radius</th>
+                <th>Central Angle</th>
                 <th>Superelevation</th>
               </tr>
             </thead>
             <tbody>
               {#each row.subrows as subrow}
-                <SubRow subseg_num={subrow.subseg_num}/>
+                <SubRow subseg_num={subrow.subseg_num} inputSubParams={inputSubParams}/>
               {/each}
             </tbody>
             <div class="flex justify-end">
@@ -906,7 +975,12 @@
               <span class="label-text-alt">mi</span>
             </td>
             <td>{inputParams.is_hc[i]}</td>
-            <td></td>
+            <td>
+                <!-- Lookup table -->
+                <label>
+                    <input type="checkbox" class="toggle hc_param" id="hc_param{row.seg_num}" name="hc_param" on:change={toggleHCParams(row.seg_num)}/>
+                </label>
+            </td>
             <td>{inputParams.vi_input[i]}
               <label for="label">
               <span class="label-text-alt"></span>
@@ -933,6 +1007,32 @@
             <p>{inputParams.pmhvfl}</p>
           </td> -->
     </table>
+    {#each rows as row}
+    <div class="hc_table overflow-x-auto card card-compact w-full bg-base-100 shadow-xl" id="hc_table{row.seg_num}" style="display:none;">
+      <div class="card-body">
+      <table class="table table-compact">
+        <thead>
+          <caption class="flex justify-start"><b>Segment {row.seg_num}</b></caption>
+          <tr>
+            <th>Subsegment</th>
+            <th>Length</th>
+            <th>Design Radius</th>
+            <th>Central Angle</th>
+            <th>Superelevation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each row.subrows as subrow}
+            <SubRow subseg_num={subrow.subseg_num} inputSubParams={inputSubParams}/>
+          {/each}
+        </tbody>
+        <div class="flex justify-end">
+          <button class="btn btn-outline btn-sm" on:click={addSubSegment(row.seg_num)} type="button">Add</button>
+          <button class="btn btn-outline btn-sm" on:click={removeSubSegment(row.seg_num)} type="button">Remove</button>
+        </div>
+      </div>
+    </div>
+    {/each}
   </div>
     <div class="los overflow-x-auto">
       <h3>Outputs</h3>
