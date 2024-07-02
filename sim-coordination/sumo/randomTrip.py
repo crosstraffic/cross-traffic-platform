@@ -907,7 +907,7 @@ def main(options):
                                 if random.random() < prob:
                                     try:
                                         origin, destination, intermediate = generate_origin_destination(
-                                            trip_generator, options, 0, sum(options.num_subsegs)-1, int(sum(options.num_subsegs)-1) / 2)
+                                            trip_generator, options, 0, src_index=sum(options.num_subsegs)-1, sink_index=int(sum(options.num_subsegs)-1) / 2)
                                         idx = generate_one(idx, time, arrivalTime, period,
                                                            origin, destination, intermediate, is_op=False)
                                     except Exception as exc:
@@ -978,7 +978,6 @@ def main(options):
                             if period == 0.0:
                                 continue
                             origin, destination, intermediate = origins_destinations[j]
-                            # print(origin, destination)
                             generate_one(j, departureTime, arrivalTime, period, origin, destination, intermediate, i, is_op=False)
                         for oj in range(options.op_flows):
                             departureTime = times[i]

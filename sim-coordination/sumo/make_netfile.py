@@ -210,7 +210,7 @@ class HCMTopology:
             else:
                 for j in range(1, self.subsegment_num[i-1]+1):
                     edge_id_for = str(i) + '_' + str(j)
-                    edge_id_back = str(i + self.segment_num) + '_' + str(self.subsegment_num[i-1] + 1 - j)
+                    edge_id_back = str(i + self.segment_num) + '_' + str(j)
 
                     if i == 1:
                         # Forward
@@ -219,7 +219,7 @@ class HCMTopology:
                                                         density=str(self.fdensity[i-1]))
 
                         # Backward
-                        self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_back + '_' + str(j), _from=str(i) + '_' + str(j+1), to=str(i) + '_' + str(j), sampledSecond=str(self.vi[i-1]),
+                        self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_back, _from=str(i) + '_' + str(j+1), to=str(i) + '_' + str(j), sampledSecond=str(self.vi[i-1]),
                                                         numLanes=str(self.num_lanes[i-1]), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][j-1]), width=str(self.lane_width),
                                                         density=str(self.fdensity[i-1]))
                     else:
