@@ -164,8 +164,8 @@ class HCMTopology:
         </edges>
         '''
         # First edge of the segment
-        is_first = True
         for i in range(1, self.segment_num+1):
+            is_first = True
             
             if self.subsegment_num[i-1] == 1:
                 if i == 1:
@@ -189,14 +189,25 @@ class HCMTopology:
                                                     density=str(self.bdensity[i-1]))
                 else:
                     if is_first:
-                        # Forward
-                        self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=str(i), _from=str(i-1) + '_2', to=str(i) + '_1', sampledSecond=str(self.vi[i-1]),
-                                                        numLanes=str(self.num_lanes[i-1]), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][0]), width=str(self.lane_width),
-                                                        density=str(self.fdensity[i-1]))
-                        # Backward
-                        self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=str(i + self.segment_num), _from=str(i) + '_1', to=str(i-1) + '_2', sampledSecond=str(self.vo[i-1]), 
-                                                    numLanes=str(1), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][0]), width=str(self.lane_width),
-                                                    density=str(self.bdensity[i-1]))
+                        if i == 2:
+                            ### the first segment has additional node
+                            # Forward
+                            self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=str(i), _from=str(i-1) + '_' + str(self.subsegment_num[i-2] + 1), to=str(i) + '_1', sampledSecond=str(self.vi[i-1]),
+                                                            numLanes=str(self.num_lanes[i-1]), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][0]), width=str(self.lane_width),
+                                                            density=str(self.fdensity[i-1]))
+                            # Backward
+                            self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=str(i + self.segment_num), _from=str(i) + '_1', to=str(i-1) + '_' + str(self.subsegment_num[i-2] + 1), sampledSecond=str(self.vo[i-1]), 
+                                                        numLanes=str(1), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][0]), width=str(self.lane_width),
+                                                        density=str(self.bdensity[i-1]))
+                        else:
+                            # Forward
+                            self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=str(i), _from=str(i-1) + '_' + str(self.subsegment_num[i-2]), to=str(i) + '_1', sampledSecond=str(self.vi[i-1]),
+                                                            numLanes=str(self.num_lanes[i-1]), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][0]), width=str(self.lane_width),
+                                                            density=str(self.fdensity[i-1]))
+                            # Backward
+                            self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=str(i + self.segment_num), _from=str(i) + '_1', to=str(i-1) + '_' + str(self.subsegment_num[i-2]), sampledSecond=str(self.vo[i-1]), 
+                                                        numLanes=str(1), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][0]), width=str(self.lane_width),
+                                                        density=str(self.bdensity[i-1]))
                         is_first = False
                     else:
                         # Forward
@@ -225,15 +236,24 @@ class HCMTopology:
                     else:
                         ### If the subsegment is the end of the segment
                         if is_first:
+                            ### the first segment has additional node
                             # Forward
-                            # if self.subsegment_num[i-1] == j:
-                            self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_for, _from=str(i-1) + '_' + str(self.subsegment_num[i-1]), to=str(i) + '_1', sampledSecond=str(self.vi[i-1]),
-                                                            numLanes=str(self.num_lanes[i-1]), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][j-1]), width=str(self.lane_width),
-                                                            density=str(self.fdensity[i-1]))
-                            # Backward --> Might be error
-                            self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_back, _from=str(i) + '_1', to=str(i-1) + '_' + str(self.subsegment_num[i-1]), sampledSecond=str(self.vo[i-1]), 
-                                                        numLanes=str(1), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][j-1]), width=str(self.lane_width),
-                                                        density=str(self.bdensity[i-1]))
+                            if i == 2:
+                                self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_for, _from=str(i-1) + '_' + str(self.subsegment_num[i-2] + 1), to=str(i) + '_1', sampledSecond=str(self.vi[i-1]),
+                                                                numLanes=str(self.num_lanes[i-1]), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][j-1]), width=str(self.lane_width),
+                                                                density=str(self.fdensity[i-1]))
+                                # Backward --> Might be error
+                                self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_back, _from=str(i) + '_1', to=str(i-1) + '_' + str(self.subsegment_num[i-2] + 1), sampledSecond=str(self.vo[i-1]), 
+                                                            numLanes=str(1), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][j-1]), width=str(self.lane_width),
+                                                            density=str(self.bdensity[i-1]))
+                            else:
+                                self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_for, _from=str(i-1) + '_' + str(self.subsegment_num[i-2]), to=str(i) + '_1', sampledSecond=str(self.vi[i-1]),
+                                                                numLanes=str(self.num_lanes[i-1]), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][j-1]), width=str(self.lane_width),
+                                                                density=str(self.fdensity[i-1]))
+                                # Backward --> Might be error
+                                self.edge_tree = ET.SubElement(self.edge_root, 'edge', id=edge_id_back, _from=str(i) + '_1', to=str(i-1) + '_' + str(self.subsegment_num[i-2]), sampledSecond=str(self.vo[i-1]), 
+                                                            numLanes=str(1), speed=str(self.speed[i-1]), length=str(self.seg_x[i-1][j-1]), width=str(self.lane_width),
+                                                            density=str(self.bdensity[i-1]))
 
                             is_first = False
                         else:

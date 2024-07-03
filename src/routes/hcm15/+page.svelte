@@ -36,11 +36,12 @@
   }
 
   let inputSubParams = {
-    subseg_length: [0],
-    design_radius: [0],
-    central_angle: [0],
-    superelevation: [0],
+    subseg_length: [[0]],
+    design_radius: [[0]],
+    central_angle: [[0]],
+    superelevation: [[0]]
   }
+
 
   let outputParams = {
     ffs: [0],
@@ -116,7 +117,6 @@
         for (let j=0; j < rows[i].subrows.length; j++) {
           seg_x[i][j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName('subseg_len'+(j+1))[0].value;
           seg_y[i][j] = 0.0;
-          console.log(seg_x[i][j]);
           rad[i][j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("design_radius"+(j+1))[0].value;
           c_angl[i][j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("central_angle"+(j+1))[0].value;
           sup_ele[i][j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("superelevation"+(j+1))[0].value;
@@ -154,13 +154,31 @@
       '--seg_x',
     ]
 
+    let max_subrows = 0;
+    for (let i=0; i<rows.length; i++) {
+      if (max_subrows < rows[i].subrows.length)
+        max_subrows = rows[i].subrows.length;
+    }
+
     // Add segment x
     let seg_x_str = "";
     for (let i=0; i < rows.length; i++) {
       // let sup_ele_list = new Array(rows.length);
-      for (let j=0; j < rows[i].subrows.length; j++) {
-        seg_x_str += seg_x[i][j].toString();
+      // for (let j=0; j < rows[i].subrows.length; j++) {
+      for (let j=0; j < max_subrows; j++) {
+        if (isNaN(seg_x[i][j])) 
+          seg_x[i][j] = 0.0;
+
+        // If this is ft, convert to mile
+        if (seg_x[i][j] < 10.0)
+          seg_x_str += seg_x[i][j].toString();
+        else
+          seg_x_str += (seg_x[i][j] / 5280).toString();
+
+        if (j != max_subrows-1)
+          seg_x_str +=  ' ';
       }
+
       if (i != rows.length-1)
         seg_x_str += ";";
     }
@@ -170,8 +188,13 @@
     set_command_list.push('--seg_y');
     let seg_y_str = "";
     for (let i=0; i < rows.length; i++) {
-      for (let j=0; j < rows[i].subrows.length; j++) {
+      for (let j=0; j < max_subrows; j++) {
+        if (isNaN(seg_y[i][j])) 
+          seg_y[i][j] = 0.0;
         seg_y_str += seg_y[i][j].toString();
+
+        if (j != max_subrows-1)
+          seg_y_str += ' ';
       }
       if (i != rows.length-1)
         seg_y_str += ";";
@@ -228,28 +251,31 @@
     set_command_list.push('--rad');
     let rad_str = "";
     for (let i=0; i < rows.length; i++) {
-      if (inputParams.is_hc[i]) {
-        for (let j=0; j < rows[i].subrows.length; j++) {
-          rad_str += rad[i][j].toString();
-        }
-      } else {
-          rad_str += "0.0";
+      for (let j=0; j < max_subrows; j++) {
+        if (isNaN(rad[i][j])) 
+          rad[i][j] = 0.0;
+        rad_str += rad[i][j].toString();
+
+        if (j != max_subrows-1)
+          rad_str += ' ';
       }
+      
       if (i != rows.length-1)
         rad_str += ";";
     }
     set_command_list.push(rad_str);
 
     // Add Central Angle
-    set_command_list.push('--ca');
+    set_command_list.push('--c_angl');
     let c_angl_str = "";
     for (let i=0; i < rows.length; i++) {
-      if (inputParams.is_hc[i]) {
-        for (let j=0; j < rows[i].subrows.length; j++) {
-          c_angl_str += c_angl[i][j].toString();
-        }
-      } else {
-          c_angl_str += "0.0";
+      for (let j=0; j < max_subrows; j++) {
+        if (isNaN(c_angl[i][j])) 
+          c_angl[i][j] = 0.0;
+        c_angl_str += c_angl[i][j].toString();
+
+        if (j != max_subrows-1)
+          c_angl_str += ' ';
       }
       if (i != rows.length-1)
         c_angl_str += ";";
@@ -260,12 +286,13 @@
     set_command_list.push('--sup_ele');
     let sup_ele_str = "";
     for (let i=0; i < rows.length; i++) {
-      if (inputParams.is_hc[i]) {
-        for (let j=0; j < rows[i].subrows.length; j++) {
-          sup_ele_str += sup_ele[i][j].toString();
-        }
-      } else {
-        sup_ele_str += "0.0";
+      for (let j=0; j < max_subrows; j++) {
+        if (isNaN(sup_ele[i][j])) 
+          sup_ele[i][j] = 0.0;
+        sup_ele_str += sup_ele[i][j].toString();
+        
+        if (j != max_subrows-1)
+          sup_ele_str += ' ';
       }
       if (i != rows.length-1)
         sup_ele_str += ";";
@@ -312,7 +339,7 @@
       'departSpeed=\"max\" type=\"typedist1\"',
     ]
 
-
+    // Number of subsegments
     trip_command_list.push('--num-subsegs');
     for (let i=0; i < rows.length; i++) {
       trip_command_list.push(rows[i].subrows.length.toString());
@@ -355,10 +382,10 @@
     inputParams.vo_input.push(0);
     inputParams.vc_select.push("1");
 
-    inputSubParams.subseg_length.push(0);
-    inputSubParams.design_radius.push(0);
-    inputSubParams.central_angle.push(0);
-    inputSubParams.superelevation.push(0);
+    inputSubParams.subseg_length.push([0]);
+    inputSubParams.design_radius.push([0]);
+    inputSubParams.central_angle.push([0]);
+    inputSubParams.superelevation.push([0]);
   }
 
   function removeSegment() {
@@ -573,10 +600,10 @@
         for (let j=0; j<json.segments[i].subsegments.length; j++) {
           if (j != 0) addSubSegment(i+1); 
           setTimeout(function() {
-            inputSubParams.subseg_length[j] = json.segments[i].subsegments[j].length;
-            inputSubParams.design_radius[j] = json.segments[i].subsegments[j].design_rad;
-            inputSubParams.central_angle[j] = json.segments[i].subsegments[j].central_angle;
-            inputSubParams.superelevation[j] = json.segments[i].subsegments[j].sup_ele;
+            inputSubParams.subseg_length[i][j] = json.segments[i].subsegments[j].length;
+            inputSubParams.design_radius[i][j] = json.segments[i].subsegments[j].design_rad;
+            inputSubParams.central_angle[i][j] = json.segments[i].subsegments[j].central_angle;
+            inputSubParams.superelevation[i][j] = json.segments[i].subsegments[j].sup_ele;
           }, 10);
         }
       }, 10);
@@ -831,7 +858,7 @@
             </thead>
             <tbody>
               {#each row.subrows as subrow}
-                <SubRow subseg_num={subrow.subseg_num} inputSubParams={inputSubParams}/>
+                <SubRow seg_num={row.seg_num} subseg_num={subrow.subseg_num} inputSubParams={inputSubParams}/>
               {/each}
             </tbody>
             <div class="flex justify-end">
@@ -1023,7 +1050,7 @@
         </thead>
         <tbody>
           {#each row.subrows as subrow}
-            <SubRow subseg_num={subrow.subseg_num} inputSubParams={inputSubParams}/>
+            <SubRow seg_num={row.seg_num} subseg_num={subrow.subseg_num} inputSubParams={inputSubParams}/>
           {/each}
         </tbody>
         <div class="flex justify-end">

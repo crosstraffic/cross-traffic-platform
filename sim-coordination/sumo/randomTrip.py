@@ -21,6 +21,7 @@
 from __future__ import print_function
 from __future__ import absolute_import
 import os
+import re
 import sys
 import random
 import bisect
@@ -354,15 +355,29 @@ class DestinedEdgeGenerator:
         self.weight_fun = weight_fun
         self.cumulative_weights = []
         self.total_weight = 0
+        edge_list = []
         for edge in self.net._edges:
             # print edge.getID(), weight_fun(edge)
             self.total_weight += weight_fun(edge)
             self.cumulative_weights.append(self.total_weight)
+            edge_list.append(edge.getID())
+
+        self.net_edges = []
+        for sorted_edge in sorted(edge_list, key=self.custom_sort_key):
+            for edge in self.net._edges:
+                if sorted_edge == edge.getID():
+                    self.net_edges.append(edge)
         if self.total_weight == 0:
             raise InvalidGenerator()
-        
+
+    def custom_sort_key(self, item):
+        # Split the item into numeric parts
+        parts = re.split(r'_', item)
+        # Convert the numeric parts to integers for proper numeric sorting
+        return [int(part) for part in parts]
+    
     def get(self, index):
-        return self.net._edges[index]
+        return self.net_edges[index]
 
 
 class RandomEdgeGenerator:

@@ -1,1 +1,1 @@
-<additional><vTypeDistribution id="typedist1"><vType id="vTypeCar" maxSpeed="72.0" length="5.0" guiShape="passenger" probability="0.95" /><vType id="vTypeTruck" maxSpeed="72.0" length="14.63" guiShape="truck/semitrailer" probability="0.05" /></vTypeDistribution></additional>
+<additional><vTypeDistribution id="typedist1"><vType id="vTypeCar" maxSpeed="88.0" length="5.0" guiShape="passenger" probability="0.92" /><vType id="vTypeTruck" maxSpeed="88.0" length="14.63" guiShape="truck/semitrailer" probability="0.08" /></vTypeDistribution></additional>

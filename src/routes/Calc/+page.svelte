@@ -116,17 +116,6 @@
             PHV = inputParams.phv[i];
             ver_class = inputParams.vc_select[i];
 
-            // Spl = document.getElementById("seg_Spl"+(i+1)).value;
-            // vc = document.getElementById("vc_select"+(i+1)).value;
-            // is_hc = document.getElementById("is_hc"+(i+1)).checked;
-            // Vi = document.getElementById("vi_input"+(i+1)).value;
-            // Vo = document.getElementById("vo_input"+(i+1)).value;
-            // seg_length = document.getElementById("seg_length"+(i+1)).value;
-            // seg_grade = document.getElementById("seg_grade"+(i+1)).value;
-            // PHF = document.getElementById("PHF_input"+(i+1)).value;
-            // PHV = document.getElementById("PHV_input"+(i+1)).value;
-            // ver_class = document.getElementById("vc_select"+(i+1)).value;
-
             var wasmSubSegment = [];
             wasmSubSegment[0] = new WasmSubSegment(0.0, 0.0, 0, 0.0, 0.0, 0.0);
 
